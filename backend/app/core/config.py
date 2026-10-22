@@ -1,0 +1,41 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from functools import lru_cache
+
+
+class Settings(BaseSettings):
+    app_name: str = "Dobbe Backend"
+    debug: bool = False
+    roboflow_api_key: str = ""
+    roboflow_private_key: str = ""
+    roboflow_workspace: str = ""
+
+    # OpenAI configuration for diagnostic reports (legacy)
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+
+    # Gemini configuration for diagnostic reports
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.5-flash-lite"
+
+    # Fish Audio TTS configuration
+    fish_audio_api_key: str = "sk-fish-CDQEhTkpJKgzGigPhzumuWzIYIz37l7DPh1W_Fbynsg"
+
+    # Model configuration
+    default_model_id: str = "adr/6"
+
+    # File upload settings - Define constants clearly
+    MAX_FILE_SIZE_MB: int = 10
+    max_file_size: int = MAX_FILE_SIZE_MB * 1024 * 1024  # 10MB in bytes
+    allowed_file_types: list = ["image/jpeg", "image/png", "image/jpg"]
+    allowed_dicom_file_types: list = ["application/dicom", "application/octet-stream"]
+
+    # File type extensions for validation
+    ALLOWED_IMAGE_EXTENSIONS: list = [".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"]
+    ALLOWED_DICOM_EXTENSIONS: list = [".dcm", ".dicom", ".DCM", ".DICOM", ".rvg", ".RVG"]
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()

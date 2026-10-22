@@ -1,0 +1,67 @@
+# Security & Environment variables
+.env
+.env.*
+!.env.example
+*.env
+
+# Markdown files (No markdown files per user instruction)
+*.md
+*.MD
+
+# Excluded folders (No DXC, no nested duplicate directory, no kiro)
+DXC/
+dental-conditions-detection/
+.kiro/
+.git_old_xraybo/
+docs/
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/.venv/
+.venv/
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
+# AI-generated benchmark & scratch test scripts/artifacts
+backend/audio_cache/
+backend/output/
+backend/benchmark_results.json
+backend/benchmark_suite.py
+backend/test_clean_image.py
+backend/test_gemini_discovery.py
+backend/test_panoramic_scan.py
+backend/test_pipeline.py
+scratch/
+
+# Unused weights
+backend/models/weights/nsitnov_dental.pt
+backend/models/weights/sabagul_caries.pt
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+.pnpm-store/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Next.js
+frontend/.next/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db

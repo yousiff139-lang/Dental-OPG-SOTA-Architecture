@@ -1,0 +1,22 @@
+{
+    "name": "dental-conditions-detection",
+    "version": "1.0.0",
+    "description": "AI-powered dental X-ray analysis platform",
+    "scripts": {
+        "dev": "concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND\" --prefix-colors \"yellow.bold,cyan.bold\" --prefix \"[{name}]\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+        "dev:backend": "node scripts/start-backend.js",
+        "dev:frontend": "node scripts/start-frontend.js",
+        "start": "npm run dev",
+        "install:all": "npm run install:backend && npm run install:frontend",
+        "install:backend": "cd backend && uv sync",
+        "install:frontend": "cd frontend && pnpm install"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    },
+    "dependencies": {
+        "@splinetool/react-spline": "^4.1.0",
+        "@splinetool/runtime": "^1.12.6",
+        "framer-motion": "^12.23.25"
+    }
+}
