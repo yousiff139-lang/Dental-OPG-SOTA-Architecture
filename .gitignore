@@ -4,9 +4,10 @@
 !.env.example
 *.env
 
-# Markdown files (No markdown files per user instruction)
+# Markdown files (Allow root README.md, ignore other md files)
 *.md
 *.MD
+!README.md
 
 # Excluded folders (No DXC, no nested duplicate directory, no kiro)
 DXC/
