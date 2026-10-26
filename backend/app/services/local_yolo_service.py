@@ -1,10 +1,10 @@
 """
-Local SOTA YOLOv8 Dental Detector Service.
+Local SOTA YOLO11 & YOLOv8 Dental Detector Service.
 
 High-precision on-device ensemble for panoramic dental radiographs:
-- SOTA Caries Detection: YOLOv8s trained specifically on dental OPG radiographs (CVPR/Kaggle)
+- SOTA YOLO11 (DENTEX Benchmark): Latest Ultralytics YOLO11 with C3k2 & C2PSA Self-Attention trained on 9,928 dental radiographs
+- SOTA Caries Detection: Specialized YOLOv8s trained specifically on dental OPG radiographs (CVPR/Kaggle)
 - SOTA Multi-Pathology: YOLOv8 trained on Dental OPG for Periapical Lesions & Impacted Teeth
-- DENTEX Consensus: YOLOv8 trained on 9,928 DENTEX benchmark dental radiographs
 
 Runs directly on-device using OpenCV DNN (zero latency, zero cloud dependency).
 Includes Patch Normalization, Anatomical Structure Zoning, and False-Positive Regularization.
@@ -67,7 +67,7 @@ class LocalYoloService:
                 self.net_dentex = cv2.dnn.readNetFromONNX(self.dentex_path)
                 self.net_dentex.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
                 self.net_dentex.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
-                logger.info(f"Loaded DENTEX YOLO model from {self.dentex_path}")
+                logger.info(f"Loaded SOTA DENTEX YOLO11 model from {self.dentex_path}")
             except Exception as e:
                 logger.warning(f"Could not load DENTEX ONNX: {e}")
 
@@ -207,7 +207,7 @@ class LocalYoloService:
                             "cy": orig_cy,
                             "w": orig_w,
                             "h": orig_h,
-                            "model_source": "DENTEX Benchmark YOLOv8",
+                            "model_source": "DENTEX Benchmark YOLO11",
                         })
             except Exception as e:
                 logger.debug(f"DENTEX net inference error: {e}")

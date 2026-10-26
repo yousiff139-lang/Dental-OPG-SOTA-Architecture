@@ -3,7 +3,7 @@ Multi-Scanning System Service for Dental Radiography.
 
 Architecture:
 1. Stage 1: Dual SOTA YOLO Scanning ("Diolo")
-   - Primary: Local SOTA YOLOv8 (trained on 9,928 DENTEX benchmark dental radiographs)
+   - Primary: Local SOTA YOLO11 (trained on 9,928 DENTEX benchmark dental radiographs with C3k2/C2PSA attention)
    - Secondary: Focused cloud detector (Roboflow adr/6)
    - Intelligent aspect-ratio detection (Panoramic OPG vs Intraoral periapical/bitewing)
    - Segment-aware quadrant decomposition for panoramic X-rays
@@ -138,11 +138,11 @@ class MultiScanningService:
     ) -> List[Dict[str, Any]]:
         """
         Stage 1: Dual YOLO Candidate Proposal.
-        1. Run Local SOTA YOLOv8 (trained on DENTEX benchmark) for high-precision caries and lesions.
+        1. Run Local SOTA YOLO11 (trained on DENTEX benchmark with C3k2/C2PSA self-attention) for high-precision caries and lesions.
         2. Run Secondary detector (Roboflow adr/6) to complement periapical sensitivity.
         3. Merge with anti-overfitting consensus and patch normalization.
         """
-        # Pass A: Local SOTA YOLOv8 Detector
+        # Pass A: Local SOTA YOLO11 Detector
         local_candidates: List[Dict[str, Any]] = []
         if self.local_yolo.is_available:
             conf_thresh = 0.30 if not is_panoramic else 0.35
