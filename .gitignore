@@ -4,12 +4,15 @@
 !.env.example
 *.env
 
-# Markdown files (Allow root README.md and notebooklm_dossier, ignore other scratch md files)
+# Markdown files (Allow root README.md, notebooklm_dossier, Presentations, and benchmark reports)
 *.md
 *.MD
 !README.md
 !notebooklm_dossier/*.md
 !notebooklm_dossier.zip
+!Presentations/*.md
+!Presentations/**/*.md
+!backend/BENCHMARK_REPORT.md
 
 # Excluded folders (No DXC, no nested duplicate directory, no kiro)
 DXC/
