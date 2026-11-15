@@ -10,10 +10,11 @@
 3. [The 4-Stage Multi-Scanning Pipeline & Dual-Brain Paradigm](#3-the-4-stage-multi-scanning-pipeline--dual-brain-paradigm)
 4. [Main Code Architecture & Algorithmic Internals](#4-main-code-architecture--algorithmic-internals)
 5. [API Lifecycle & Network Request Flow](#5-api-lifecycle--network-request-flow)
-6. [Empirical Benchmarks & Validation Results](#6-empirical-benchmarks--validation-results)
-7. [Frontend User Experience & Telemetry Dashboard](#7-frontend-user-experience--telemetry-dashboard)
-8. [Quickstart & Single-Instruction Deployment](#8-quickstart--single-instruction-deployment)
-9. [Summary & Key Takeaways](#9-summary--key-takeaways)
+6. [Benchmark Datasets & Kaggle Links](#6-benchmark-datasets--kaggle-links)
+7. [Empirical Benchmarks & Validation Results](#7-empirical-benchmarks--validation-results)
+8. [Frontend User Experience & Telemetry Dashboard](#8-frontend-user-experience--telemetry-dashboard)
+9. [Quickstart & Single-Instruction Deployment](#9-quickstart--single-instruction-deployment)
+10. [Summary & Key Takeaways](#10-summary--key-takeaways)
 
 ---
 
@@ -446,7 +447,32 @@ Triggered via `POST /api/v1/tts`:
 
 ---
 
-## 6. Empirical Benchmarks & Validation Results
+## 6. Benchmark Datasets & Kaggle Links
+
+The neural models and multi-scanning calibration pipelines in this engine were trained and validated against major open benchmarks in dental radiography:
+
+### 1. Dental OPG X-Ray Dataset (6-Class Diagnostic Benchmark)
+- **Kaggle Dataset Link**: [Dental OPG Xray Dataset on Kaggle](https://www.kaggle.com/datasets/imtkaggleteam/dental-opg-xray-dataset)
+- **Mendeley Research Data**: [A Comprehensive Dental Dataset of Six Classes (Mendeley Data)](https://data.mendeley.com/datasets/hxt48yk462/1)
+- **Repository Copy**: Included in the repository under `Dental OPG XRAY Dataset/`
+- **Annotations & Modality**: Orthopantomogram (OPG) panoramic radiographs annotated for both object detection (bounding boxes with train/val/test splits) and disease classification across 6 primary clinical categories:
+  1. `Caries`: Demineralization and enamel/dentin cavitations.
+  2. `Infection`: Periapical radiolucencies, apical periodontitis, and abscesses.
+  3. `Impacted teeth`: Unerupted or partially erupted third molars.
+  4. `BDC-BDR`: Badly Decayed Crowns & Badly Decayed Roots.
+  5. `Fractured Teeth`: Crown and root fractures.
+  6. `Healthy Teeth`: Clean control cohorts.
+- **Role in XRayBo**: Used for training the multi-condition OPG specialist (`sentoz_dental_opg.onnx`) and fine-tuning the coronal caries specialist (`gegesay_caries_yolov8s.onnx`).
+
+### 2. DENTEX Challenge 2023 (MICCAI Challenge)
+- **Kaggle Dataset Link**: [DENTEX Challenge 2023 on Kaggle](https://www.kaggle.com/datasets/truthisoutthere/dentex-challenge-2023)
+- **Grand Challenge Official Benchmark**: [DENTEX: Dental Enumeration and Diagnosis on Panoramic X-rays](https://dentex.grand-challenge.org/)
+- **Annotations & Modality**: Large-scale benchmark comprising **9,928 panoramic dental radiographs** annotated for tooth enumeration, quadrant decomposition, and clinical abnormal finding detection.
+- **Role in XRayBo**: Used to train the primary Ultralytics YOLO11 model (`liodon_dental.onnx`) equipped with `C3k2` bottleneck blocks and `C2PSA` self-attention heads.
+
+---
+
+## 7. Empirical Benchmarks & Validation Results
 
 Evaluated against the **DENTEX Benchmark** (9,928 radiographs) and the **Dental OPG XRAY Dataset (CVPR)**:
 
@@ -482,7 +508,7 @@ Evaluated against the **DENTEX Benchmark** (9,928 radiographs) and the **Dental 
 
 ---
 
-## 7. Frontend User Experience & Telemetry Dashboard
+## 8. Frontend User Experience & Telemetry Dashboard
 
 ```mermaid
 flowchart TD
@@ -513,7 +539,7 @@ flowchart TD
 
 ---
 
-## 8. Quickstart & Single-Instruction Deployment
+## 9. Quickstart & Single-Instruction Deployment
 
 Launch both backend and frontend concurrently with a single command from the project root:
 
@@ -543,7 +569,7 @@ pnpm dev
 
 ---
 
-## 9. Summary & Key Takeaways
+## 10. Summary & Key Takeaways
 
 > **Presenter Conclusion:**
 > *"To summarize: **XRayBo** bridges the divide between computer vision and oral healthcare. By moving away from single, black-box models and introducing a **Dual-Brain Architecture**—combining high-speed, on-device YOLO11/YOLOv8 inference via OpenCV DNN C++, multimodal clinical reasoning with Gemini Vision, and deterministic classical image processing—we achieved:
