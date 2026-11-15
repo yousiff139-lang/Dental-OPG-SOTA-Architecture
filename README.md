@@ -152,8 +152,16 @@ Implemented in `backend/app/services/verification_service.py`. Before any boundi
 
 ### Stage 1: Dual SOTA YOLO Scanning ("Diolo")
 Implemented in `backend/app/services/multi_scanner_service.py` and `backend/app/services/local_yolo_service.py`:
-- **Aspect-Ratio Gating**: If `aspect_ratio >= 1.40` (or image width >= 850 px with panoramic proportions), the system automatically flags the film as an Orthopantomogram.
-- **Panoramic Quadrant Decomposition**: Instead of downscaling the entire panoramic image to a square, the film is sliced into four quadrants with a **3% horizontal × 4% vertical geometric overlap** (Q1: Upper Right, Q2: Upper Left, Q3: Lower Left, Q4: Lower Right), preserving native enamel resolution.
+- **Aspect-Ratio Gating**: Automatically flags the film as an Orthopantomogram when aspect ratio indicates a panoramic scan:
+  ```python
+  is_panoramic = bool(aspect_ratio >= 1.40 or (width >= 850 and height / width <= 0.68))
+  ```
+- **Panoramic Quadrant Decomposition**: Instead of downscaling the entire panoramic image to a square, the film is sliced into four quadrants with boundary overlap:
+  ```python
+  overlap_x = int(width * 0.03)  # 3% horizontal boundary overlap
+  overlap_y = int(height * 0.04) # 4% vertical boundary overlap
+  ```
+  (Q1: Upper Right, Q2: Upper Left, Q3: Lower Left, Q4: Lower Right), preserving native enamel resolution.
 - **The ONNX Model Roster**:
   - `liodon_dental.onnx` (10.6 MB): Ultralytics YOLO11 trained on 9,928 DENTEX radiographs with **C3k2 bottleneck blocks** and **C2PSA self-attention heads**.
   - `gegesay_caries_yolov8s.onnx` (44.7 MB): High-precision specialist trained specifically on coronal caries.
@@ -162,17 +170,34 @@ Implemented in `backend/app/services/multi_scanner_service.py` and `backend/app/
 
 ### Stage 2: Second-Stage Re-Checker & Regularization
 Implemented in `backend/app/services/multi_scanner_service.py`:
-- **Containment Suppression (IoM)**: Standard IoU fails when a large box completely swallows a smaller box. XRayBo calculates Intersection over Minimum: `IoM = Area(A ∩ B) / min(Area(A), Area(B))`. If `IoM >= 0.35` on the same class, the redundant box is pruned.
-- **Patch Z-Score Normalization**: For each proposed lesion, a localized patch is extracted and standardized (mean = 0, std = 1). The local drop in contrast relative to surrounding tissue (Δμ) is measured.
+- **Containment Suppression (IoM)**: Standard IoU fails when a large box completely swallows a smaller box. XRayBo calculates Intersection over Minimum:
+  ```python
+  iom = intersection_area / min(area_a, area_b)
+  ```
+  If `iom >= 0.35` on the same class, the redundant box is pruned.
+- **Patch Z-Score Normalization**: For each proposed lesion, a localized patch is extracted and standardized:
+  ```python
+  norm_patch = (patch - np.mean(patch)) / (np.std(patch) + 1e-6)
+  contrast_drop = (ctx_mean - patch_mean) / max(ctx_mean, 1.0)
+  ```
 - **Anatomical Spatial Rules**: Cavities must exist on coronal crown structures (`y < 0.55 * H` in upper teeth, `y > 0.45 * H` in lower teeth). Periapical lesions must reside strictly in the apical root zone (`y > 0.35 * H`).
 - **Visual Prompting Gatekeeper**: For ambiguous proposals, the engine extracts a contextual crop with a 25% border margin and draws a **2 px red target rectangle** directly on the candidate lesion. This image is sent to Gemini Vision. The red rectangle focuses the model's self-attention layers on the exact demineralization site, eliminating bone marrow false positives.
 
 ### Stage 3: Deterministic Image Processing & Signal Extraction
 Implemented in `backend/app/services/image_processing_service.py`:
 - **CLAHE**: Contrast-Limited Adaptive Histogram Equalization with a clip limit of 3.0 over an 8 × 8 grid enhances local tissue contrast without over-amplifying background noise.
-- **Morphological Black-Hat**: Using an elliptical structuring element (15 × 15 px), the Black-Hat transform (`BlackHat(I) = Closing(I) - I`) isolates dark radiolucent structures against bright enamel (cavities and bone infections).
-- **Morphological Top-Hat**: (`TopHat(I) = I - Opening(I)`) extracts radiopaque structures (metallic fillings, composite restorations, dense enamel).
-- **Sobel Gradient Magnitude**: Computes the first-order derivative `sqrt(Gx^2 + Gy^2)` across enamel margins to evaluate whether the outer tooth contour is anatomically continuous or broken by decay.
+- **Morphological Black-Hat**: Isolates dark radiolucent structures against bright enamel (cavities and bone infections):
+  ```python
+  blackhat = cv2.morphologyEx(enhanced, cv2.MORPH_BLACKHAT, kernel)
+  ```
+- **Morphological Top-Hat**: Extracts radiopaque structures (metallic fillings, composite restorations, dense enamel):
+  ```python
+  tophat = cv2.morphologyEx(enhanced, cv2.MORPH_TOPHAT, kernel)
+  ```
+- **Sobel Gradient Magnitude**: Computes the first-order derivative across enamel margins to evaluate whether the outer tooth contour is anatomically continuous or broken by decay:
+  ```python
+  gradient = np.sqrt(sobel_x**2 + sobel_y**2)
+  ```
 - **Base64 Diagnostic Heatmap**: The processed signals are composited into a colorized heatmap overlay encoded to a base64 JPEG string and transmitted to the frontend.
 
 ---
@@ -224,9 +249,12 @@ orig_h  = h / scale
 ### B. Mathematical Formulations: IoU vs. IoM Suppression
 In `backend/app/services/multi_scanner_service.py`:
 
-```
-IoU = Area(A ∩ B) / Area(A ∪ B)
-IoM = Area(A ∩ B) / min(Area(A), Area(B))
+```python
+# Intersection over Union (IoU)
+iou = intersection / max(area_a + area_b - intersection, 1e-6)
+
+# Intersection over Minimum (IoM)
+iom = intersection / max(min(area_a, area_b), 1e-6)
 ```
 
 ```python
@@ -243,19 +271,22 @@ union = area_a + area_b - intersection
 iou = intersection / max(union, 1e-6)
 iom = intersection / max(min(area_a, area_b), 1e-6)
 ```
-If two boxes of the same class have `IoM >= 0.35` or their centroids are closer than 75% of the smallest dimension, the lower-confidence box is suppressed.
+If two boxes of the same class have `iom >= 0.35` or their centroids are closer than 75% of the smallest dimension, the lower-confidence box is suppressed.
 
 ### C. DICOM Parsing & Dynamic Windowing
 In `backend/app/services/inference_service.py`, raw medical DICOM files are parsed:
-1. **Modality LUT**: Applies rescale slope and intercept: `HU = Pixel * Slope + Intercept`.
-2. **VOI LUT / Windowing**: Reads `WindowCenter` (C) and `WindowWidth` (W):
-   ```python
-   pixel_norm = np.clip((pixel - (center - width / 2)) / width * 255.0, 0, 255)
-   ```
-3. **Photometric Interpretation**: If `PhotometricInterpretation == "MONOCHROME1"`, the raw sensor inverted representation (where 0 is white and max is black) is mathematically flipped:
-   ```python
-   pixel = pixel.max() - pixel
-   ```
+
+```python
+# 1. Modality LUT (Hounsfield Units)
+hu = pixel_array * rescale_slope + rescale_intercept
+
+# 2. VOI LUT Windowing (Dynamic Contrast Center/Width)
+pixel_norm = np.clip((pixel_array - (window_center - window_width / 2.0)) / window_width * 255.0, 0, 255).astype(np.uint8)
+
+# 3. Photometric Interpretation Inversion (MONOCHROME1)
+if photometric_interpretation == "MONOCHROME1":
+    pixel_norm = pixel_norm.max() - pixel_norm
+```
 
 ---
 
