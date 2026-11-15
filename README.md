@@ -35,7 +35,7 @@ flowchart TD
 ```
 
 When standard off-the-shelf object detection models (like single YOLO networks or raw Vision-Language Models) are thrown at panoramic X-rays, **they fail catastrophically**:
-1. **Aspect Ratio Distortion**: A panoramic OPG is approximately $1500 \times 800\text{ px}$ (a $\sim 2:1$ aspect ratio). Squeezing it into a standard $640 \times 640$ square forces a **$2.34\times$ horizontal compression**, crushing the micro-gap between adjacent teeth where 80% of interproximal cavities begin.
+1. **Aspect Ratio Distortion**: A panoramic OPG is approximately 1500 × 800 px (a ~2:1 aspect ratio). Squeezing it into a standard 640 × 640 square forces a **2.34× horizontal compression**, crushing the micro-gap between adjacent teeth where 80% of interproximal cavities begin.
 2. **Micro vs. Macro Scale Conflict**: An incipient enamel cavity is a micro-lesion measuring 10–30 pixels, whereas an impacted wisdom tooth or periapical bone abscess spans 200–400 pixels. A single neural backbone experiences severe feature interference.
 3. **Anatomical Mimics**: Natural anatomical shadows—such as the maxillary sinus air cavities, spongy mandibular trabecular marrow, and cervical burnout at the tooth neck—look identical to bacterial caries to a naive neural network, resulting in massive false-positive rates on clean teeth.
 
@@ -82,7 +82,7 @@ The system is configured across two main manifest files: `backend/pyproject.toml
 
 ### A. Backend Libraries (`backend/pyproject.toml`)
 1. **`fastapi` & `uvicorn`**: High-throughput asynchronous REST API framework serving endpoints with non-blocking I/O.
-2. **`opencv-python` (`cv2.dnn`)**: **Zero-GPU C++ Execution Engine**. Instead of loading PyTorch ($>2.5\text{ GB}$ disk footprint, $>1.8\text{ GB}$ baseline RAM), the neural models are compiled to **ONNX FP32** graphs and executed via OpenCV's optimized C++ DNN runtime using CPU **AVX2 / AVX-512 SIMD vector instructions**. Working memory stays under **$45\text{ MB}$**, running in **$45\text{--}82\text{ ms}$** per tile on standard clinic reception PCs.
+2. **`opencv-python` (`cv2.dnn`)**: **Zero-GPU C++ Execution Engine**. Instead of loading PyTorch (> 2.5 GB disk footprint, > 1.8 GB baseline RAM), the neural models are compiled to **ONNX FP32** graphs and executed via OpenCV's optimized C++ DNN runtime using CPU **AVX2 / AVX-512 SIMD vector instructions**. Working memory stays under **45 MB**, running in **45–82 ms** per tile on standard clinic reception PCs.
 3. **`pydicom`, `gdcm`, `pylibjpeg`, `pylibjpeg-libjpeg`, `pylibjpeg-openjpeg`**: The medical imaging stack. It extracts clinical tags (Patient ID, Study Date, KVp, Exposure) and decompresses lossy/lossless JPEG-2000 and RLE DICOM pixel streams.
 4. **`numpy`**: Fast matrix vectorization for coordinate transformations, Intersection over Union (IoU), Intersection over Minimum (IoM), and Z-score patch statistics.
 5. **`httpx`**: Asynchronous HTTP client with connection pooling for outbound API requests to Gemini Vision, Roboflow, and Fish Audio.
@@ -114,7 +114,7 @@ flowchart TD
     end
 
     subgraph S1["Stage 1: Dual SOTA YOLO Scanning ('Diolo' Ensemble)"]
-        D1["Aspect Ratio Gating (AR >= 1.40 -> Panoramic Mode)"]
+        D1["Aspect Ratio Gating (aspect_ratio >= 1.40 -> Panoramic Mode)"]
         D2["Quadrant Decomposition (Q1-Q4 with 3% x 4% Overlap)"]
         D3["Ultralytics YOLO11 DENTEX (C3k2 & C2PSA Self-Attention)"]
         D4["Specialized Caries YOLOv8s & Multi-Pathology OPG YOLOv8"]
@@ -152,27 +152,27 @@ Implemented in `backend/app/services/verification_service.py`. Before any boundi
 
 ### Stage 1: Dual SOTA YOLO Scanning ("Diolo")
 Implemented in `backend/app/services/multi_scanner_service.py` and `backend/app/services/local_yolo_service.py`:
-- **Aspect-Ratio Gating**: If $\text{aspect\_ratio} \ge 1.40$ (or width $\ge 850\text{ px}$ with panoramic height ratio), the system flags the film as an Orthopantomogram.
-- **Panoramic Quadrant Decomposition**: Instead of downscaling the entire panoramic image to a square, the film is sliced into four quadrants with a **$3\% \text{ horizontal} \times 4\% \text{ vertical}$ geometric overlap** ($Q_1$: Upper Right, $Q_2$: Upper Left, $Q_3$: Lower Left, $Q_4$: Lower Right), preserving native enamel resolution.
+- **Aspect-Ratio Gating**: If `aspect_ratio >= 1.40` (or image width >= 850 px with panoramic proportions), the system automatically flags the film as an Orthopantomogram.
+- **Panoramic Quadrant Decomposition**: Instead of downscaling the entire panoramic image to a square, the film is sliced into four quadrants with a **3% horizontal × 4% vertical geometric overlap** (Q1: Upper Right, Q2: Upper Left, Q3: Lower Left, Q4: Lower Right), preserving native enamel resolution.
 - **The ONNX Model Roster**:
-  - `liodon_dental.onnx` ($10.6\text{ MB}$): Ultralytics YOLO11 trained on $9,928$ DENTEX radiographs with **$C3k2$ bottleneck blocks** and **$C2PSA$ self-attention heads**.
-  - `gegesay_caries_yolov8s.onnx` ($44.7\text{ MB}$): High-precision specialist trained specifically on coronal caries.
-  - `sentoz_dental_opg.onnx` ($44.7\text{ MB}$): Multi-condition detector for periapical lesions and impacted teeth.
+  - `liodon_dental.onnx` (10.6 MB): Ultralytics YOLO11 trained on 9,928 DENTEX radiographs with **C3k2 bottleneck blocks** and **C2PSA self-attention heads**.
+  - `gegesay_caries_yolov8s.onnx` (44.7 MB): High-precision specialist trained specifically on coronal caries.
+  - `sentoz_dental_opg.onnx` (44.7 MB): Multi-condition detector for periapical lesions and impacted teeth.
 - **Consensus Fusion**: Local detections serve as high-precision anchors. Secondary candidates from cloud models are only accepted if corroborated by local proposals or high radiolucency contrast.
 
 ### Stage 2: Second-Stage Re-Checker & Regularization
 Implemented in `backend/app/services/multi_scanner_service.py`:
-- **Containment Suppression ($\text{IoM}$)**: Standard IoU fails when a large box completely swallows a smaller box. XRayBo calculates Intersection over Minimum ($\text{IoM} = \frac{\text{Area}(A \cap B)}{\min(\text{Area}(A), \text{Area}(B))}$). If $\text{IoM} \ge 0.35$ on the same class, the redundant box is pruned.
-- **Patch Z-Score Normalization**: For each proposed lesion, a localized patch is extracted and standardized ($\mu=0, \sigma=1$). The local drop in contrast relative to surrounding tissue ($\Delta\mu$) is measured.
-- **Anatomical Spatial Rules**: Cavities must exist on coronal crown structures ($y < 0.55 \cdot H$ in upper teeth, $y > 0.45 \cdot H$ in lower teeth). Periapical lesions must reside strictly in the apical root zone ($y > 0.35 \cdot H$).
-- **Visual Prompting Gatekeeper**: For ambiguous proposals, the engine extracts a contextual crop with a $25\%$ border margin and draws a **$2\text{ px}$ red target rectangle** directly on the candidate lesion. This image is sent to Gemini Vision. The red rectangle focuses the model's self-attention layers on the exact demineralization site, eliminating bone marrow false positives.
+- **Containment Suppression (IoM)**: Standard IoU fails when a large box completely swallows a smaller box. XRayBo calculates Intersection over Minimum: `IoM = Area(A ∩ B) / min(Area(A), Area(B))`. If `IoM >= 0.35` on the same class, the redundant box is pruned.
+- **Patch Z-Score Normalization**: For each proposed lesion, a localized patch is extracted and standardized (mean = 0, std = 1). The local drop in contrast relative to surrounding tissue (Δμ) is measured.
+- **Anatomical Spatial Rules**: Cavities must exist on coronal crown structures (`y < 0.55 * H` in upper teeth, `y > 0.45 * H` in lower teeth). Periapical lesions must reside strictly in the apical root zone (`y > 0.35 * H`).
+- **Visual Prompting Gatekeeper**: For ambiguous proposals, the engine extracts a contextual crop with a 25% border margin and draws a **2 px red target rectangle** directly on the candidate lesion. This image is sent to Gemini Vision. The red rectangle focuses the model's self-attention layers on the exact demineralization site, eliminating bone marrow false positives.
 
 ### Stage 3: Deterministic Image Processing & Signal Extraction
 Implemented in `backend/app/services/image_processing_service.py`:
-- **CLAHE**: Contrast-Limited Adaptive Histogram Equalization with a clip limit of $3.0$ over an $8 \times 8$ grid enhances local tissue contrast without over-amplifying background noise.
-- **Morphological Black-Hat**: Using an elliptical structuring element ($15 \times 15\text{ px}$), the Black-Hat transform ($\text{BlackHat}(I) = \text{Closing}(I) - I$) isolates dark radiolucent structures against bright enamel (cavities and bone infections).
-- **Morphological Top-Hat**: ($\text{TopHat}(I) = I - \text{Opening}(I)$) extracts radiopaque structures (metallic fillings, composite restorations, dense enamel).
-- **Sobel Gradient Magnitude**: Computes the first-order derivative $\sqrt{G_x^2 + G_y^2}$ across enamel margins to evaluate whether the outer tooth contour is anatomically continuous or broken by decay.
+- **CLAHE**: Contrast-Limited Adaptive Histogram Equalization with a clip limit of 3.0 over an 8 × 8 grid enhances local tissue contrast without over-amplifying background noise.
+- **Morphological Black-Hat**: Using an elliptical structuring element (15 × 15 px), the Black-Hat transform (`BlackHat(I) = Closing(I) - I`) isolates dark radiolucent structures against bright enamel (cavities and bone infections).
+- **Morphological Top-Hat**: (`TopHat(I) = I - Opening(I)`) extracts radiopaque structures (metallic fillings, composite restorations, dense enamel).
+- **Sobel Gradient Magnitude**: Computes the first-order derivative `sqrt(Gx^2 + Gy^2)` across enamel margins to evaluate whether the outer tooth contour is anatomically continuous or broken by decay.
 - **Base64 Diagnostic Heatmap**: The processed signals are composited into a colorized heatmap overlay encoded to a base64 JPEG string and transmitted to the frontend.
 
 ---
@@ -208,19 +208,26 @@ preds = self.net_caries.forward()[0].T  # Shape: (8400, 5)
 
 #### Tensor Geometry
 The output tensor has shape `(8400, 5)`:
-- `8400` represents the anchor-free spatial points across strides 8 ($80\times 80 = 6400$), 16 ($40\times 40 = 1600$), and 32 ($20\times 20 = 400$).
-- Columns 0–3 represent $[c_x, c_y, w, h]$ in $640\times 640$ letterboxed space.
+- `8400` represents the anchor-free spatial points across strides 8 (80 × 80 = 6400), 16 (40 × 40 = 1600), and 32 (20 × 20 = 400).
+- Columns 0–3 represent `[cx, cy, w, h]` in 640 × 640 letterboxed space.
 - Column 4 contains the class confidence score.
 
 The engine de-normalizes coordinates back to original image space:
-$$\text{orig\_cx} = \frac{c_x - \text{left}}{\text{scale}}, \quad \text{orig\_cy} = \frac{c_y - \text{top}}{\text{scale}}, \quad \text{orig\_w} = \frac{w}{\text{scale}}, \quad \text{orig\_h} = \frac{h}{\text{scale}}$$
+
+```python
+orig_cx = (cx - left) / scale
+orig_cy = (cy - top) / scale
+orig_w  = w / scale
+orig_h  = h / scale
+```
 
 ### B. Mathematical Formulations: IoU vs. IoM Suppression
 In `backend/app/services/multi_scanner_service.py`:
 
-$$\text{IoU} = \frac{\text{Area}(A \cap B)}{\text{Area}(A \cup B)}$$
-
-$$\text{IoM} = \frac{\text{Area}(A \cap B)}{\min(\text{Area}(A), \text{Area}(B))}$$
+```
+IoU = Area(A ∩ B) / Area(A ∪ B)
+IoM = Area(A ∩ B) / min(Area(A), Area(B))
+```
 
 ```python
 # Compute intersection rectangle
@@ -236,15 +243,19 @@ union = area_a + area_b - intersection
 iou = intersection / max(union, 1e-6)
 iom = intersection / max(min(area_a, area_b), 1e-6)
 ```
-If two boxes of the same class have $\text{IoM} \ge 0.35$ or their centroids are closer than $75\%$ of the smallest dimension, the lower-confidence box is suppressed.
+If two boxes of the same class have `IoM >= 0.35` or their centroids are closer than 75% of the smallest dimension, the lower-confidence box is suppressed.
 
 ### C. DICOM Parsing & Dynamic Windowing
 In `backend/app/services/inference_service.py`, raw medical DICOM files are parsed:
-1. **Modality LUT**: Applies rescale slope and intercept: $\text{HU} = \text{Pixel} \cdot \text{Slope} + \text{Intercept}$.
-2. **VOI LUT / Windowing**: Reads `WindowCenter` ($C$) and `WindowWidth` ($W$):
-   $$\text{Pixel}_{\text{norm}} = \text{clip}\left(\frac{\text{Pixel} - (C - W/2)}{W} \times 255, 0, 255\right)$$
+1. **Modality LUT**: Applies rescale slope and intercept: `HU = Pixel * Slope + Intercept`.
+2. **VOI LUT / Windowing**: Reads `WindowCenter` (C) and `WindowWidth` (W):
+   ```python
+   pixel_norm = np.clip((pixel - (center - width / 2)) / width * 255.0, 0, 255)
+   ```
 3. **Photometric Interpretation**: If `PhotometricInterpretation == "MONOCHROME1"`, the raw sensor inverted representation (where 0 is white and max is black) is mathematically flipped:
-   $$\text{Pixel} = \text{Pixel}_{\max} - \text{Pixel}$$
+   ```python
+   pixel = pixel.max() - pixel
+   ```
 
 ---
 
@@ -314,7 +325,7 @@ const response = await apiClient.post<DicomDetectionResponse>(
 ### 2. Backend Validation & Routing (`backend/app/api/routes.py`)
 FastAPI receives the upload:
 - Verifies MIME types against `settings.allowed_file_types` (`image/jpeg`, `image/png`, `application/dicom`).
-- Inspects byte size against `settings.max_file_size` ($50\text{ MB}$).
+- Inspects byte size against `settings.max_file_size` (50 MB limit).
 - Writes the buffer to a temporary file via `tempfile.NamedTemporaryFile` and passes the absolute path to `inference_service.detect_dental_conditions()`.
 - Guaranteed cleanup in a `finally:` block unlinking the temporary file.
 
@@ -337,7 +348,7 @@ Triggered via `POST /api/v1/tts`:
 
 ## 6. Empirical Benchmarks & Validation Results
 
-Evaluated against the **DENTEX Benchmark** ($9,928$ radiographs) and the **Dental OPG XRAY Dataset (CVPR)**:
+Evaluated against the **DENTEX Benchmark** (9,928 radiographs) and the **Dental OPG XRAY Dataset (CVPR)**:
 
 | Evaluation Metric | 1. Standalone YOLOv8 (Legacy) | 2. Standalone YOLO11 (DENTEX) | 3. XRayBo SOTA Multi-Scanner Engine |
 | :--- | :--- | :--- | :--- |
@@ -357,7 +368,7 @@ Evaluated against the **DENTEX Benchmark** ($9,928$ radiographs) and the **Denta
    if bw > 55 or bh > 65:
        continue  # Silently discarded real lesions!
    ```
-   On a $1500 \times 800$ panoramic radiograph, an adult molar crown spans $80\text{--}140\text{ px}$, and an apical abscess spans $100\text{--}250\text{ px}$. This hardcoded threshold was silently deleting **100% of authentic periapical lesions and molar cavities** (causing the 0.0% periapical recall).
+   On a 1500 × 800 panoramic radiograph, an adult molar crown spans 80–140 px, and an apical abscess spans 100–250 px. This hardcoded threshold was silently deleting **100% of authentic periapical lesions and molar cavities** (causing the 0.0% periapical recall).
    
    **The Fix**: Replaced absolute pixel thresholds with dynamically scaled image fractions:
    ```python
@@ -367,7 +378,7 @@ Evaluated against the **DENTEX Benchmark** ($9,928$ radiographs) and the **Denta
    ```
 2. **False-Positive Elimination on Healthy Films**:
    - On clean control radiographs, standalone YOLO models generated **7 false alarms per film** by mistaking normal mandibular marrow trabeculae for cavities.
-   - The XRayBo Multi-Scanner achieved **$100\%$ specificity (0 false alarms)** across clean control cohorts due to Stage 0 Global Auditing and Stage 2 Visual Prompting.
+   - The XRayBo Multi-Scanner achieved **100% specificity (0 false alarms)** across clean control cohorts due to Stage 0 Global Auditing and Stage 2 Visual Prompting.
 
 ---
 
@@ -397,7 +408,7 @@ flowchart TD
 ```
 
 1. **Precision HTML5 Canvas Alignment** (`frontend/src/components/detection/detection-image-preview.tsx`): Standard Next.js image components introduce CSS letterboxing offsets. XRayBo attaches a `ResizeObserver` directly to the `<img>` element, tracking true bounding rectangles down to sub-pixel coordinates.
-2. **Interactive Telemetry Bar** (`frontend/src/components/detection/detection-overlay.tsx`): Clinicians can toggle quadrant overlays ($Q_1\text{--}Q_4$) or activate the classical CV heatmap overlay with an adjustable opacity slider ($0\%\text{ to }100\%$).
+2. **Interactive Telemetry Bar** (`frontend/src/components/detection/detection-overlay.tsx`): Clinicians can toggle quadrant overlays (Q1–Q4) or activate the classical CV heatmap overlay with an adjustable opacity slider (0% to 100%).
 3. **Comprehensive Report Generation & PDF Export** (`frontend/src/components/results/diagnostic-report.tsx`): Generates formatted PDF dossiers incorporating the annotated radiographic frame, patient metadata, and structured clinical treatment regimens.
 
 ---
@@ -438,6 +449,6 @@ pnpm dev
 > *"To summarize: **XRayBo** bridges the divide between computer vision and oral healthcare. By moving away from single, black-box models and introducing a **Dual-Brain Architecture**—combining high-speed, on-device YOLO11/YOLOv8 inference via OpenCV DNN C++, multimodal clinical reasoning with Gemini Vision, and deterministic classical image processing—we achieved:
 > - **100% Caries Recall** on validation cohorts.
 > - An **86.7% reduction in false-positive detections** on clean films.
-> - **Zero-GPU CPU execution** in under $330\text{ ms}$ on standard clinic hardware.
+> - **Zero-GPU CPU execution** in under 330 ms on standard clinic hardware.
 >
 > On behalf of **Karrar Al-Mayaly & Mohammed Majed**, thank you for your time. We are now open to questions from the committee."*
