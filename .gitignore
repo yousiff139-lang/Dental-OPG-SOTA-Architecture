@@ -4,15 +4,14 @@
 !.env.example
 *.env
 
-# Markdown files (Allow root README.md, notebooklm_dossier, Presentations, and benchmark reports)
+# Markdown files: ONLY track the main root README.md file
 *.md
 *.MD
-!README.md
-!notebooklm_dossier/*.md
-!notebooklm_dossier.zip
-!Presentations/*.md
-!Presentations/**/*.md
-!backend/BENCHMARK_REPORT.md
+!/README.md
+
+# NotebookLM dossier folder
+notebooklm_dossier/
+notebooklm_dossier.zip
 
 # Excluded folders (No DXC, no nested duplicate directory, no kiro)
 DXC/
@@ -42,6 +41,9 @@ backend/audio_cache/
 backend/output/
 backend/benchmark_results.json
 backend/benchmark_suite.py
+backend/benchmark_yolo_comparison.py
+backend/fast_compare.py
+backend/test_scanner_cli.py
 backend/test_clean_image.py
 backend/test_gemini_discovery.py
 backend/test_panoramic_scan.py
